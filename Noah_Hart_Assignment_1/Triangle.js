@@ -4,6 +4,9 @@ class Triangle {
         this.position = [0.0, 0.0, 0.0];
         this.color = [1.0,1.0,1.0,1.0];
         this.size = 5.0;
+        this.down = false;
+        this.right = false;
+        this.flip = false;
     }
 
     // Render this shape
@@ -18,7 +21,15 @@ class Triangle {
         gl.uniform1f(u_Size, size);
         // Draw
         var d = this.size/200.0 // delta
-        drawTriangle( [xy[0], xy[1], xy[0]+d, xy[1], xy[0], xy[1]+d] );
+        let h = d;
+        if (this.down) h = -d;
+        if (!this.right) {
+          drawTriangle( [xy[0] - d/2, xy[1], xy[0] + d/2, xy[1], xy[0], xy[1] + h * Math.sqrt(3) / 2] );
+        } else if (!this.flip) {
+          drawTriangle( [xy[0], xy[1], xy[0] + d, xy[1], xy[0], xy[1] + h] );
+        } else {
+          drawTriangle( [xy[0] - d, xy[1], xy[0], xy[1], xy[0], xy[1] + h] );
+        }
     }
 }
 
