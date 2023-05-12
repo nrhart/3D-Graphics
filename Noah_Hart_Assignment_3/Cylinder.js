@@ -6,6 +6,7 @@ class Cylinder {
     this.size = 50.0;
     this.segments = 10;
     this.matrix = new Matrix4();
+    this.textureNum = -1;
   }
 
   render() {
@@ -13,6 +14,7 @@ class Cylinder {
     var rgba = this.color;
     var segments = this.segments;
 
+    gl.uniform1i(u_whichTexture, this.textureNum);
     // Pass the color of a point to u_FragColor variable
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
 
