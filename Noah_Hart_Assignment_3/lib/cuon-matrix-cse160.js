@@ -145,10 +145,10 @@ class Vector3 {
     normalize() {
         // Insert your code here.
         // This function should change this vector (this.elements) and not create a new vector.
-        var magnitude = this.magnitude()
-        this.elements[0] /= magnitude;
-        this.elements[1] /= magnitude;
-        this.elements[2] /= magnitude;
+        //var magnitude = this.magnitude()
+        this.elements[0] /= this.magnitude();
+        this.elements[1] /= this.magnitude();
+        this.elements[2] /= this.magnitude();
 
         // Don't delete the return statement.
         return this;

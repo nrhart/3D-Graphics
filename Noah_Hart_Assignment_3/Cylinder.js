@@ -6,7 +6,7 @@ class Cylinder {
     this.size = 50.0;
     this.segments = 10;
     this.matrix = new Matrix4();
-    this.textureNum = -1;
+    this.textureNum = -2;
   }
 
   render() {

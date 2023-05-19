@@ -27,6 +27,8 @@
     Please use a browser that supports "canvas"
   </canvas>
   <p>
+    Blocky Animal:
+  <p>
     Play All Animations:
     <button type="button" id="animationAllOnButton">ON</button>
     <button type="button" id="animationAllOffButton">OFF</button>
@@ -46,9 +48,12 @@
     <button type="button" id="animationFlipperOnButton">ON</button>
     <button type="button" id="animationFlipperOffButton">OFF</button>
   <p>
-    Camera Angle X: <input type="range" min="-360" max="360" value="45" class="slider" id="angleXSlider">
-    Camera Angle Y: <input type="range" min="-360" max="360" value="0" class="slider" id="angleYSlider">
+  <hr>
+    Camera:
   <p>
+    FOV: <input type="range" min="10" max="150" value="50" class="slider" id="fovSlider">
+  <p>
+    <p id="win">Navigate the Maze to find the Dolphin!</p>
 
     <script src="lib/webgl-utils.js"></script>
     <script src="lib/webgl-debug.js"></script>

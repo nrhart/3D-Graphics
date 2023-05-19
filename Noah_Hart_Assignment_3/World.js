@@ -20,6 +20,8 @@ var FSHADER_SOURCE = `
   varying vec2 v_UV;
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
+  uniform sampler2D u_Sampler1;
+  uniform sampler2D u_Sampler2;
   uniform int u_whichTexture;
   void main() {
 
@@ -31,6 +33,12 @@ var FSHADER_SOURCE = `
   
     } else if(u_whichTexture == 0){
       gl_FragColor = texture2D(u_Sampler0, v_UV);
+
+    } else if(u_whichTexture == 1){
+      gl_FragColor = texture2D(u_Sampler1, v_UV);
+
+    } else if(u_whichTexture == 2){
+      gl_FragColor = texture2D(u_Sampler2, v_UV);
   
     } else {
       gl_FragColor = vec4(1, .2, .2, 1);
@@ -49,6 +57,8 @@ let u_ProjectionMatrix;
 let u_ViewMatrix;
 let u_GlobalRotateMatrix;
 let u_Sampler0;
+let u_Sampler1;
+let u_Sampler2;
 let u_whichTexture;
 
 function setupWebGL() {
@@ -128,6 +138,19 @@ function connectVariablesToGLSL() {
         return false;
     }
 
+    // Get the storage location of u_Sampler
+    u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
+    if (!u_Sampler1) {
+        console.log('Failed to get the storage location of u_Sampler1');
+        return false;
+    }
+
+    u_Sampler2 = gl.getUniformLocation(gl.program, 'u_Sampler2');
+    if (!u_Sampler2) {
+        console.log('Failed to get the storage location of u_Sampler2');
+        return false;
+    }
+
     u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
     if (!u_whichTexture) {
         console.log('Failed to get the storage location of u_whichTexture');
@@ -146,6 +169,7 @@ let g_flipperAngle = 0;
 let g_tailAngle = 0;
 let g_headAngle = 0;
 let g_blowHole = 1;
+let g_speed = 0.15;
 let g_headAnimation = false;
 let g_flipperAnimation = false;
 let g_tailAnimation = false;
@@ -178,29 +202,37 @@ function addActionsForHtmlUI() {
     document.getElementById('animationAllOnButton').onclick = function () { g_headAnimation = true; g_tailAnimation = true; g_flipperAnimation = true };
 
     // Slider Events
-    document.getElementById('tailSlider').addEventListener('mousemove', function () { g_tailAngle = this.value; renderAllShapes(); })
-    document.getElementById('flipperSlider').addEventListener('mousemove', function () { g_flipperAngle = this.value; renderAllShapes(); })
-    document.getElementById('headSlider').addEventListener('mousemove', function () { g_headAngle = this.value; renderAllShapes(); })
-    document.getElementById('angleXSlider').addEventListener('mousemove', function () { g_globalAngleX = this.value; renderAllShapes(); })
-    document.getElementById('angleYSlider').addEventListener('mousemove', function () { g_globalAngleY = this.value; renderAllShapes(); })
+    document.getElementById('tailSlider').addEventListener('mousemove', function () { g_tailAngle = this.value; })
+    document.getElementById('flipperSlider').addEventListener('mousemove', function () { g_flipperAngle = this.value;  })
+    document.getElementById('headSlider').addEventListener('mousemove', function () { g_headAngle = this.value;  })
+    
+    document.getElementById('fovSlider').addEventListener('mousemove', function () { g_camera.fov = this.value; })
 
 }
 
-function initTextures(gl, n) {
-    var image = new Image();  // Create the image object
-    if (!image) {
+function initTextures() {
+    var image0 = new Image();  // Create the image object
+    var image1 = new Image();  // Create the image object
+    var image2 = new Image();
+    if (!image0 || !image1 || !image2) {
         console.log('Failed to create the image object');
         return false;
     }
     // Register the event handler to be called on loading an image
-    image.onload = function(){ sendTextureToGLSL(image); };
+    image0.onload = function(){ sendTextureToGLSL(image0, 0); };
     // Tell the browser to load an image
-    image.src = 'sky.jpg';
+    image0.src = 'sky.jpg';
+
+    image1.onload = function(){ sendTextureToGLSL(image1, 1); };
+    image1.src = 'brickwall.jpg';
+
+    image2.onload = function(){ sendTextureToGLSL(image2, 2); };
+    image2.src = 'grass.jpg';
 
     return true;
 }
   
-function sendTextureToGLSL(image) {
+function sendTextureToGLSL(image, textureIndex) {
     var texture = gl.createTexture();   // Create a texture object
     if (!texture) {
       console.log('Failed to create the texture object');
@@ -208,7 +240,13 @@ function sendTextureToGLSL(image) {
     }
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
     // Enable texture unit0
-    gl.activeTexture(gl.TEXTURE0);
+    if (textureIndex == 0) {
+        gl.activeTexture(gl.TEXTURE0);
+    } else if (textureIndex == 1) {
+        gl.activeTexture(gl.TEXTURE1);
+    } else if (textureIndex == 2) {
+        gl.activeTexture(gl.TEXTURE2);
+    }
     // Bind the texture object to the target
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -218,7 +256,15 @@ function sendTextureToGLSL(image) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
 
     // Set the texture unit 0 to the sampler
-    gl.uniform1i(u_Sampler0, 0);
+    if (textureIndex == 0) {
+        gl.uniform1i(u_Sampler0, 0);
+    } else if (textureIndex == 1) {
+        gl.uniform1i(u_Sampler1, 1);
+    } else if (textureIndex == 2) {
+        gl.uniform1i(u_Sampler2, 2);
+    }
+
+    console.log('finished loadTexture', image);
 }
 
 
@@ -232,7 +278,7 @@ function main() {
     // Register function (event handler) to be called on a mouse press
     document.onkeydown = keydown;
     canvas.onmousedown = click;
-    canvas.onmousemove = function (ev) { if (ev.buttons == 1) { click(ev) } };
+    canvas.onmousemove = onMove;
 
     // Set up actions for the HTML UI elements
     addActionsForHtmlUI();
@@ -252,6 +298,9 @@ var fps = document.getElementById("fps");
 var startTime = Date.now();
 var frame = 0;
 
+var win = false;
+var winMessage = document.getElementById("win");
+
 // Called by browser repeartedly whenever its time
 function tick() {
     // Save the current time
@@ -262,7 +311,16 @@ function tick() {
         fps.innerHTML = (frame / ((time - startTime) / 1000)).toFixed(1);
         startTime = time;
         frame = 0;
-      }
+    }
+
+    if(g_camera.eye.elements[0] < 1 && g_camera.eye.elements[0] > -1 && g_camera.eye.elements[2] < 1 && g_camera.eye.elements[2] > -1 && !win){
+        winMessage.innerHTML = ("You found the Dolphin!");
+        win = true;
+        g_blowHoleAnimation = true;
+        g_flipperAnimation = true;
+        g_tailAnimation = true;
+        g_headAnimation = true;
+    }
     // Update Animation Angles
     updateAnimationAngles();
 
@@ -298,20 +356,28 @@ function updateAnimationAngles() {
     }
 }
 
+var g_camera = new Camera();
+var startcoor = [0, 0];
+
+function onMove(ev) {
+    let [x, y] = convertCoordinatesEventToGL(ev);
+    var sensitivity = 9;
+
+    if (x > startcoor[0]) {
+        g_camera.panRight(Math.abs(sensitivity * x) - Math.abs(startcoor[0]));
+    } else if (x < startcoor[0]) {
+        g_camera.panLeft(Math.abs(sensitivity * startcoor[0]) - Math.abs(x));
+    }
+    startcoor = [x,y];
+}
+
+
 function click(ev) {
     // Extract the event click and return it in WebGL coordinates
-    let [x, y] = convertCoordinatesEventToGL(ev);
-
     if (ev.shiftKey) {
         g_blowHoleAnimation = true;
         g_reachPeak = false;
-    } else {
-        g_globalAngleX = 100 * x;
-        g_globalAngleY = -100 * y;
     }
-
-    // Draw every shape that is supposed to be in the canvas
-    renderAllShapes();
 }
 
 // Extract the event click and return it in WebGL coordinates
@@ -326,27 +392,103 @@ function convertCoordinatesEventToGL(ev) {
     return ([x, y]);
 }
 
-var g_camera = new Camera();
-
 var g_map = [
-[1, 1, 1, 1, 1, 1, 1, 1],
-[1, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 1, 1, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 1, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 0, 0, 1, 2, 2, 1, 4, 1, 3, 1, 1, 2, 3, 1, 1, 1, 0, 0, 1, 2, 2, 1, 4, 1, 3, 1, 1, 2, 3, 1],
+[1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 3, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 2, 2, 0, 0, 0, 0, 0, 1, 0, 3, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 4, 2, 1],
+[3, 0, 0, 4, 3, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 3, 1, 1, 2, 0, 0, 0, 0, 3, 1, 0, 1, 3, 3, 0, 0, 1],
+[1, 0, 1, 0, 1, 1, 1, 0, 2, 0, 0, 0, 0, 0, 1, 2, 3, 1, 0, 3, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 2],
+[2, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 4, 1, 4, 0, 3, 3, 1, 0, 0, 1, 1, 4, 1, 3, 2, 3, 1],
+[4, 0, 1, 0, 0, 0, 2, 3, 0, 1, 1, 0, 0, 0, 1, 2, 3, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 2],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 3, 1, 2, 2, 0, 0, 0, 3, 0, 1, 0, 3, 1, 1, 0, 0, 1],
+[1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 4, 2, 1, 2, 0, 0, 0, 1, 1, 4, 0, 0, 1, 0, 0, 4, 0, 0, 3],
+[2, 0, 2, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2, 4, 1, 2, 2, 0, 0, 0, 0, 0, 1, 3, 3, 1, 1, 0, 0, 1],
+[3, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 2, 1, 1, 0, 0, 3, 1, 1, 0, 0, 1, 0, 1, 0, 4, 2, 1],
+[1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 3, 2, 4, 0, 1, 0, 4, 2, 2, 3, 0, 1, 1, 0, 0, 0, 1, 2],
+[2, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 2, 3, 0, 1, 1, 0, 0, 0, 1, 2],
+[1, 1, 2, 0, 0, 0, 1, 3, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 4],
+[1, 0, 0, 1, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 4, 2, 3, 3, 1, 0, 0, 1, 1, 4, 1, 0, 0, 0, 0, 0, 0, 2, 0, 4, 3, 2, 0, 0, 0, 3, 1, 1, 0, 0, 1],
+[1, 1, 0, 0, 1, 2, 2, 1, 4, 1, 3, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 4, 1, 3, 1, 1, 2, 3, 1],
+[1, 2, 2, 0, 0, 0, 0, 0, 1, 0, 3, 1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 2, 2, 0, 0, 0, 0, 0, 1, 0, 3, 1, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 4, 2, 1],
+[3, 0, 0, 4, 3, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 3, 1, 0, 1, 3, 3, 0, 0, 1],
+[1, 0, 1, 0, 1, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 2],
+[2, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 1, 1, 4, 1, 3, 2, 3, 1],
+[4, 0, 1, 0, 0, 0, 2, 3, 0, 1, 1, 0, 0, 0, 1, 2, 3, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 2],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 1, 0, 3, 1, 1, 0, 0, 1],
+[1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 4, 2, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 4, 0, 0, 3],
+[2, 0, 2, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2, 4, 1, 2, 2, 0, 0, 0, 0, 0, 1, 0, 3, 1, 1, 0, 0, 1],
+[3, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 2, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 4, 2, 1],
+[1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 3, 2, 4, 0, 1, 0, 0, 0, 2, 3, 0, 1, 1, 0, 0, 0, 1, 2],
+[2, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 4, 0, 0, 3, 4, 0, 1, 0, 0, 0, 2, 3, 0, 1, 1, 0, 0, 0, 1, 2],
+[1, 1, 2, 0, 0, 0, 1, 3, 1, 0, 1, 3, 3, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 4],
+[1, 0, 0, 1, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 3, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 4, 2, 3, 3, 1, 0, 0, 1, 1, 4, 1, 3, 2, 3, 1, 1, 2, 2, 0, 0, 0, 0, 0, 1, 0, 3, 1, 1, 0, 0, 1],
 ]
 
+var g_floor = [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]
+
+
 function drawMap() {
-    for (x = 0; x < 8; x++) {
-        for (y = 0; y < 8; y++) {
-            if (g_map[x][y] == 1) {
-                var body = new Cube([0.45,0.25,0.0,1.0]);
-                body.textureNum = -2;
-                body.matrix.translate(x-4, -.75, y-4);
-                body.render();
+    for (x = 0; x < 32; x++) {
+        for (y = 0; y < 32; y++) {
+            if (g_map[x][y] > 0) {
+                var body = new Cube([1.0,1.0,1.0,1.0]);
+                body.textureNum = 1;
+                body.matrix.translate(x-16, -.75, y-16);
+                body.renderfast();
+                for(z = g_map[x][y] - 1; z != 0; z--){
+                    //body.textureNum = 1;
+                    body.matrix.translate(0, 1, 0);
+                    body.renderfast();
+                }
+            }
+        }
+    }
+}
+
+function drawFloor() {
+    for (x = 0; x < 32; x++) {
+        for (y = 0; y < 32; y++) {
+            if (g_floor[x][y] > 0) {
+                var floor = new Cube([1.0,1.0,1.0,1.0]);
+                floor.textureNum = 2;
+                floor.matrix.translate(x-16, -1.75, y-16);
+                floor.renderfast();
             }
         }
     }
@@ -355,27 +497,27 @@ function drawMap() {
 function keydown(ev) {
     // W
     if(ev.keyCode == 87) {
-        g_camera.moveForward();
+        g_camera.moveForward(g_speed);
     } 
     // S
     else if(ev.keyCode == 83) {
-        g_camera.moveBackward();
+        g_camera.moveBackward(g_speed);
     }
     // A
     else if(ev.keyCode == 65) {
-        g_camera.moveLeft();
+        g_camera.moveLeft(g_speed);
     }
     // D
     else if(ev.keyCode == 68) {
-        g_camera.moveRight();
+        g_camera.moveRight(g_speed);
     }
     // Q
     else if(ev.keyCode == 81) {
-        g_camera.panLeft();
+        g_camera.panLeft(5);
     }
     // E
     else if(ev.keyCode == 69) {
-        g_camera.panRight();
+        g_camera.panRight(5);
     }
     console.log(ev.keyCode);
 }
@@ -401,13 +543,13 @@ function renderAllShapes() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    var floor = new Cube([0.0,1.0,0.5,1.0]);
-    floor.textureNum =-2;
+    /*var floor = new Cube([1.0,1.0,1.0,1.0]);
+    floor.textureNum = 2;
     floor.matrix.translate(0.0, -0.75, 0.0);
-    floor.matrix.scale(10, 0, 10);
+    floor.matrix.scale(50, 0, 50);
     floor.matrix.translate(-0.5, 0.0, -0.5);
     floor.render();
-
+    */
     var sky = new Cube([1.0,0.0,0.0,1.0]);
     sky.textureNum = 0;
     sky.matrix.scale(50, 50, 50);
@@ -415,15 +557,16 @@ function renderAllShapes() {
     sky.render();
 
 
-    //drawBlockyAnimal();
+    drawBlockyAnimal();
+    drawFloor();
     drawMap();
 
 }
 
+
 function drawBlockyAnimal() {
     // Draw Dolphin body
     var dolphinBody = new Cylinder([0.6, 1.0, 1.0, 1.0]);
-    dolphinBody.textureNum = 0;
     dolphinBody.matrix.translate(0.0, 0.0, 0.4);
     dolphinBody.matrix.rotate(180, 1, 0, 0);
     dolphinBody.matrix.scale(1.0, 1.0, 0.9);
@@ -456,7 +599,7 @@ function drawBlockyAnimal() {
 
     // head
     var head = new Cube([0.6, 1.0, 1.0, 1.0]);
-    head.textureNum = 0;
+    head.textureNum = -2;
     head.matrix.translate(0.0, -0.2, -0.58);
     head.matrix.rotate(g_headAngle, 0, 1, 0);
     head.matrix.scale(0.4, 0.4, 0.3);
@@ -468,6 +611,7 @@ function drawBlockyAnimal() {
 
     // nose
     var nose = new Cube([0.6, 1.0, 1.0, 1.0]);
+    nose.textureNum = -2;
     nose.matrix = headNose;
     nose.matrix.translate(0.3, 0.1, -0.6);
     nose.matrix.scale(0.4, 0.2, 0.6);
@@ -475,24 +619,28 @@ function drawBlockyAnimal() {
 
     // Eyes
     var eyeBlackRight = new Cube([0.0, 0.0, 0.0, 1.0]);
+    eyeBlackRight.textureNum = -2;
     eyeBlackRight.matrix = headEyeRight;
     eyeBlackRight.matrix.translate(1.0, 0.3, 0.2);
     eyeBlackRight.matrix.scale(0.01, 0.1, 0.2);
     eyeBlackRight.render();
 
     var eyeWhiteRight = new Cube([1.0, 1.0, 1.0, 1.0]);
+    eyeWhiteRight.textureNum = -2;
     eyeWhiteRight.matrix = headEyeRight;
     eyeWhiteRight.matrix.translate(0.0, 0.0, 0.9);
     eyeWhiteRight.matrix.scale(0.7, 1.0, 1.0);
     eyeWhiteRight.render();
 
     var eyeBlackLeft = new Cube([0.0, 0.0, 0.0, 1.0]);
+    eyeBlackLeft.textureNum = -2;
     eyeBlackLeft.matrix = headEyeLeft;
     eyeBlackLeft.matrix.translate(-0.01, 0.3, 0.2);
     eyeBlackLeft.matrix.scale(0.01, 0.1, 0.2);
     eyeBlackLeft.render();
 
     var eyeWhiteLeft = new Cube([1.0, 1.0, 1.0, 1.0]);
+    eyeWhiteLeft.textureNum = -2;
     eyeWhiteLeft.matrix = headEyeLeft;
     eyeWhiteLeft.matrix.translate(0.0, 0.0, 0.9);
     eyeWhiteLeft.matrix.scale(0.7, 1.0, 1.0);
@@ -517,6 +665,7 @@ function drawBlockyAnimal() {
     cone.render();
 
     var tailFin = new Cube([0.6, 1.0, 1.0, 1.0]);
+    tailFin.textureNum = -2;
     tailFin.matrix = dolphinTailFin;
     tailFin.matrix.translate(-0.45, 0.4, -0.05);
     tailFin.matrix.rotate(0, 1, 0, 0);
@@ -540,9 +689,10 @@ function drawBlockyAnimal() {
     blowHole.render();
 
     var topBlowHole = new Cube([0.3, 1.0, 1.0, 1.0]);
+    topBlowHole.textureNum = -2;
     topBlowHole.matrix = topOfBlowHole;
     topBlowHole.matrix.scale(g_blowHole, g_blowHole, 0.2);
     topBlowHole.matrix.translate(-0.5, -0.5, 4.0);
     topBlowHole.render();
-
+    
 }
