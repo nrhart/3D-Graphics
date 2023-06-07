@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Virtual World</title>
+  <style>
+    .container {
+      position: relative;
+    }
+
+    .topright {
+      position: absolute;
+      top: 8px;
+      right: 16px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+
+<div class="container">
+  <div class="topright"><span id="fps">--</span>FPS</div>
+</div>
+
+<body onload="main()">
+  <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+  </canvas>
+  <p>
+    Normals:
+    <button type="button" id="normalOn">ON</button>
+    <button type="button" id="normalOff">OFF</button>
+  <p>
+    Light:
+    <button type="button" id="lightOn">ON</button>
+    <button type="button" id="lightOff">OFF</button>
+    Spot Light:
+    <button type="button" id="spotOn">ON</button>
+    <button type="button" id="spotOff">OFF</button>
+  <p>
+    Light Rotation (Sun Cycle):
+    <button type="button" id="lightRotateOn">ON</button>
+    <button type="button" id="lightRotateOff">OFF</button>
+  <p>
+    Disco Mode:
+    <button type="button" id="discoOn">ON</button>
+    <button type="button" id="discoOff">OFF</button>
+  <p>
+    Light X: <input type="range" min="-250" max="250" value="0" class="slider" id="lightSlideX">
+    Light Y: <input type="range" min="-250" max="250" value="100" class="slider" id="lightSlideY">
+    Light Z: <input type="range" min="-250" max="250" value="-200" class="slider" id="lightSlideZ">
+  <p>
+    Spot Light X: <input type="range" min="-32" max="32" value="12" class="slider" id="spotSlideX">
+    Spot Light Y: <input type="range" min="-30" max="30" value="1" class="slider" id="spotSlideY">
+    Spot Light Z: <input type="range" min="-32" max="32" value="-4" class="slider" id="spotSlideZ">
+  <p>
+    Light R: <input type="range" min="0" max="100" value="100" class="slider" id="lightSlideR">
+    Light G: <input type="range" min="0" max="100" value="100" class="slider" id="lightSlideG">
+    Light B: <input type="range" min="0" max="100" value="100" class="slider" id="lightSlideB">
+  <p>
+  <hr>
+    Blocky Animal:
+  <p>
+    Play All Animations:
+    <button type="button" id="animationAllOnButton">ON</button>
+    <button type="button" id="animationAllOffButton">OFF</button>
+  <p>
+    Head <input type="range" min="-45" max="45" value="0" class="slider" id="headSlider">
+    Animation:
+    <button type="button" id="animationHeadOnButton">ON</button>
+    <button type="button" id="animationHeadOffButton">OFF</button>
+  <p>
+    Tail <input type="range" min="-25" max="25" value="0" class="slider" id="tailSlider">
+    Animation:
+    <button type="button" id="animationTailOnButton">ON</button>
+    <button type="button" id="animationTailOffButton">OFF</button>
+  <p>
+    Flipper <input type="range" min="-45" max="45" value="0" class="slider" id="flipperSlider">
+    Animation:
+    <button type="button" id="animationFlipperOnButton">ON</button>
+    <button type="button" id="animationFlipperOffButton">OFF</button>
+  <p>
+  <hr>
+    Camera:
+  <p>
+    FOV: <input type="range" min="10" max="150" value="50" class="slider" id="fovSlider">
+  <p>s
+
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="lib/cuon-matrix-cse160.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Circle.js"></script>
+    <script src="Point.js"></script>
+    <script src="Cube.js"></script>
+    <script src="Sphere.js"></script>
+    <script src="Cylinder.js"></script>
+    <script src="Cone.js"></script>
+    <script src="Camera.js"></script>
+    <script src="World.js"></script>
+
+
+</body>
+
+</html>
